@@ -171,3 +171,5 @@ cython_debug/
 .LSOverride
 
 *.mat
+
+en-hu/*

@@ -1,26 +1,11 @@
 import string
+import re
 
 import pandas as pd
 import numpy as np
-from typing import Dict, Tuple, Union, List, Callable
-from imblearn.over_sampling import RandomOverSampler
-from sklearn.model_selection import train_test_split
-from vectorize import get_n_gram, get_tfidf
-import nltk
-from nltk.corpus import stopwords  # note: download stopwords corpus
-from nltk.stem import PorterStemmer, WordNetLemmatizer
-from nltk.tokenize import sent_tokenize, word_tokenize
+from pathlib import Path
 from num2words import num2words
-
-# global vars
-# download stop words if not present on machine
-try:
-    stop_words = set(stopwords.words("english"))
-except:
-    nltk.download("stopwords")
-    stop_words = set(stopwords.words("english"))
-stemmer = PorterStemmer()
-wnl = WordNetLemmatizer()
+from sklearn.model_selection import train_test_split
 
 
 ## Normalisation methods used for every preprocessing pipeline ##
@@ -29,103 +14,94 @@ def make_lower(s: str) -> str:
 
 
 def strip_whitespace(s: str) -> str:
+    # double spaces
+    s = re.sub(r" +", " ", s)
     return s.strip()
 
 
+def remove_xml_tags(xml_string):
+    return re.sub(r"<[^>]+>", "", xml_string)
+
+
+def remove_parantheses_strings(s: str) -> str:
+    return re.sub(r"\([^()]*\)", "", s)
+
+
+def remove_invalid_dash(s: str) -> str:
+    return re.sub(r" - ", "", s)
+
+
 def remove_punctuation(s: str) -> str:
-    dic = {
-        e: " "
-        for e in string.punctuation.replace("#", "")  ## other symbols to include? *, !?
-    }
-    return str(s).translate(str.maketrans(dic))
+    valid_punctuations = [".", ",", "!", "?", "'", "-"]
+    invalid_punctuation = string.punctuation
+    for p in valid_punctuations:
+        invalid_punctuation = invalid_punctuation.replace(p, "")
+    replacements = {p: " " for p in invalid_punctuation}
+    return str(s).translate(str.maketrans(replacements))
 
 
-def numbers_to_words(s: str) -> str:
-    return " ".join([num2words(x) if x.isdigit() else x for x in s.split()])
+def numbers_to_words(s: str, lang: str = "en") -> str:
+    return " ".join([num2words(x, lang=lang) if x.isdigit() else x for x in s.split()])
 
 
-def remove_stops(s: str) -> str:
-    return " ".join([x for x in s.split() if x not in stop_words])
-
-
-def remove_empty_text(df: pd.DataFrame) -> pd.DataFrame:
-    mask = df["processed"].str.len() > 0
+def remove_empty_text(df: pd.DataFrame, col_name: str) -> pd.DataFrame:
+    mask = df[col_name].str.len() > 0
     return_df = df.loc[mask]
     return return_df.reset_index(drop=True)
 
 
-## Methods which differ in inclusion amongst different pipelines ##
-def stem(s: str) -> list[str]:
-    return " ".join([stemmer.stem(x) for x in s.split()])
+def apply_default_pipeline(data: pd.DataFrame, in_col: str, out_col: str, lang: str):
+    df = data.copy()
+    language_agnostic_pipeline = [
+        make_lower,
+        remove_xml_tags,
+        remove_parantheses_strings,
+        remove_punctuation,
+        remove_invalid_dash,
+    ]
+    df[out_col] = df[in_col]
+    for f in language_agnostic_pipeline:
+        df[out_col] = df[out_col].apply(f)
+    df[out_col] = df[out_col].apply(numbers_to_words, lang=lang)
+    df[out_col] = df[out_col].apply(strip_whitespace)
+    df = remove_empty_text(df, out_col)
+    return df
 
 
-def lemmatize(s: str) -> list[str]:
-    return " ".join([wnl.lemmatize(x) for x in s.split()])
-
-
-def preprocess_and_split(
-    vec_mode: str,
-    pipeline: List[Callable],
-    sentiment_mapping: Dict[str, Union[int, np.ndarray]],
+def get_split_idx(
+    dataset_length: int,
     train_ratio: float,
     val_ratio: float,
     test_ratio: float,
-    ngram_range: Tuple[int, int] = (1, 1),
-    exclude_sentiment: List[str] = None,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-
-    assert train_ratio + val_ratio + test_ratio == 1.0
-    df = pd.read_csv("../data/TweetSentiment.csv")
-    df = df[["text", "sentiment"]]
-    if exclude_sentiment is not None:
-        for exclude_name in exclude_sentiment:
-            df = df.drop(df[df["sentiment"] == exclude_name].index)
-    df["sentiment"] = df["sentiment"].map(sentiment_mapping)
-    df["text"] = df["text"].apply(str)
-
-    df["processed"] = df["text"]
-    for f in pipeline:
-        df["processed"] = df["processed"].apply(f)
-    df = remove_empty_text(df)
-
-    if vec_mode == "tfidf":
-        vectors, words = get_tfidf(df["processed"].to_list(), ngram_range=ngram_range)
-    elif vec_mode == "ngram":
-        vectors, words = get_n_gram(df["processed"].to_list(), ngram_range=ngram_range)
-    vectors = vectors.toarray()
-    df["vectors"] = None
-    for (index, row), value in zip(df.iterrows(), vectors):
-        df.at[index, "vectors"] = value
-
-    X_raw = np.vstack(df["vectors"].to_numpy())
-    Y_raw = np.vstack(df["sentiment"].to_numpy())
-    _, counts = np.unique(Y_raw, return_counts=True)
-    max_num = np.max(counts)
-    oversampler = RandomOverSampler(
-        sampling_strategy={i: max_num for i, _ in enumerate(counts)}
+):
+    assert train_ratio + val_ratio + test_ratio == 1
+    relative_val_size = val_ratio / (1 - test_ratio)
+    full_idx = np.arange(0, dataset_length)
+    train_val_idx, test_idx, y_trainval, _ = train_test_split(
+        full_idx, full_idx, test_size=test_ratio
     )
-    X_over, y_over = oversampler.fit_resample(X_raw, Y_raw)
-    if y_over.shape[1] != len(sentiment_mapping):
-
-        def make_vector(x, dim):
-            vec = np.zeros(dim)
-            vec[x] = 1
-            return vec
-
-        new_y = np.zeros((y_over.shape[0], len(sentiment_mapping)))
-        for i, val in enumerate(y_over):
-            new_y[i] = make_vector(val, len(sentiment_mapping))
-        y_over = new_y
-    X_train, X_test_val, Y_train, Y_test_val = train_test_split(
-        X_over, y_over, test_size=1 - train_ratio, shuffle=True, stratify=y_over
+    train_idx, val_idx, _, _ = train_test_split(
+        train_val_idx, y_trainval, test_size=relative_val_size
     )
+    return train_idx, val_idx, test_idx
 
-    X_val, X_test, Y_val, Y_test = train_test_split(
-        X_test_val,
-        Y_test_val,
-        test_size=test_ratio / (test_ratio + val_ratio),
-        shuffle=True,
-        stratify=Y_test_val,
+
+def split_and_save_dataframe(
+    data: pd.DataFrame,
+    train_ratio: float,
+    val_ratio: float,
+    test_ratio: float,
+    file_base_name: str,
+    out_dir: str,
+):
+    train_idx, val_idx, test_idx = get_split_idx(
+        len(data), train_ratio, val_ratio, test_ratio
     )
-
-    return X_train, X_val, X_test, Y_train, Y_val, Y_test, words
+    train_df = data.iloc[train_idx].reset_index(drop=True)
+    val_df = data.iloc[val_idx].reset_index(drop=True)
+    test_df = data.iloc[test_idx].reset_index(drop=True)
+    out_dir_path = Path(out_dir)
+    out_dir_path.mkdir(parents=True, exist_ok=True)
+    train_df.to_csv(out_dir + file_base_name + "_train.csv")
+    val_df.to_csv(out_dir + file_base_name + "_val.csv")
+    test_df.to_csv(out_dir + file_base_name + "_test.csv")
