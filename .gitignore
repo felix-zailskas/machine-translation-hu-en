@@ -172,4 +172,4 @@ cython_debug/
 
 *.mat
 
-en-hu/*
+hu-en/
