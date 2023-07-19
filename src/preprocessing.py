@@ -59,7 +59,7 @@ def apply_default_pipeline(data: pd.DataFrame, in_col: str, out_col: str, lang: 
         remove_punctuation,
         remove_invalid_dash,
     ]
-    df[out_col] = df[in_col]
+    df[out_col] = df[in_col].astype(str)
     for f in language_agnostic_pipeline:
         df[out_col] = df[out_col].apply(f)
     df[out_col] = df[out_col].apply(numbers_to_words, lang=lang)
@@ -73,15 +73,16 @@ def get_split_idx(
     train_ratio: float,
     val_ratio: float,
     test_ratio: float,
+    **kwargs
 ):
     assert train_ratio + val_ratio + test_ratio == 1
     relative_val_size = val_ratio / (1 - test_ratio)
     full_idx = np.arange(0, dataset_length)
     train_val_idx, test_idx, y_trainval, _ = train_test_split(
-        full_idx, full_idx, test_size=test_ratio
+        full_idx, full_idx, test_size=test_ratio, **kwargs
     )
     train_idx, val_idx, _, _ = train_test_split(
-        train_val_idx, y_trainval, test_size=relative_val_size
+        train_val_idx, y_trainval, test_size=relative_val_size, **kwargs
     )
     return train_idx, val_idx, test_idx
 
@@ -93,9 +94,10 @@ def split_and_save_dataframe(
     test_ratio: float,
     file_base_name: str,
     out_dir: str,
+    **kwargs
 ):
     train_idx, val_idx, test_idx = get_split_idx(
-        len(data), train_ratio, val_ratio, test_ratio
+        len(data), train_ratio, val_ratio, test_ratio, **kwargs
     )
     train_df = data.iloc[train_idx].reset_index(drop=True)
     val_df = data.iloc[val_idx].reset_index(drop=True)
