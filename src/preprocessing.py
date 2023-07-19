@@ -32,7 +32,7 @@ def remove_invalid_dash(s: str) -> str:
 
 
 def remove_punctuation(s: str) -> str:
-    valid_punctuations = [".", ",", "!", "?", "'", "-"]
+    valid_punctuations = [",", "'", "-"]
     invalid_punctuation = string.punctuation
     for p in valid_punctuations:
         invalid_punctuation = invalid_punctuation.replace(p, "")
