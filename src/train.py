@@ -67,7 +67,7 @@ n_epochs = 3
 encoder = EncoderRNN(MAX_LENGTH, embedding_dim, input_pretrained_embeddings).to(device)
 decoder = DecoderRNN(embedding_dim, MAX_LENGTH, output_pretrained_embeddings).to(device)
 
-# train(dataloader, encoder, decoder, n_epochs, print_every=1, plot_every=5)
+#train(dataloader, encoder, decoder, n_epochs, print_every=1, plot_every=5)
 # torch.save(encoder.state_dict(), "models/encoder.model")
 # torch.save(decoder.state_dict(), "models/decoder.model")
 
@@ -79,7 +79,7 @@ decoder.load_state_dict(torch.load("models/decoder.model"))
 decoder.eval()
 
 # evaluate some sentence pairs
-output_words = evaluate(encoder, decoder, input_sentences[0], input_word2idx, output_word2idx)
+output_words = evaluate(encoder, decoder, input_sentences[0], input_word2idx, output_word2idx, input_w2v_model, output_w2v_model)
 output_sentence = " ".join(output_words)
 print(input_sentences[0])
 print(output_sentence)

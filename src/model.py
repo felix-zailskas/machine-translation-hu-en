@@ -43,6 +43,7 @@ class DecoderRNN(nn.Module):
         super(DecoderRNN, self).__init__()
         self.embedding = nn.Embedding.from_pretrained(output_embeddings, freeze=False)
         self.gru = nn.GRU(hidden_size, hidden_size, batch_first=True)
+        # self.out = nn.Linear(hidden_size, output_size)
 
     def forward(self, encoder_outputs, encoder_hidden, target_tensor=None):
         batch_size = encoder_outputs.size(0)
@@ -77,9 +78,9 @@ class DecoderRNN(nn.Module):
 
     def forward_step(self, input_seq, hidden):
         output = self.embedding(input_seq)
-        # output = input_seq
-        output = F.relu(output)
+        # output = F.relu(output)
         output, hidden = self.gru(output, hidden)
+        # output = self.out(output)
         return output, hidden
     
 
@@ -95,10 +96,9 @@ def train_epoch(
         decoder_optimizer.zero_grad()
 
         encoder_outputs, encoder_hidden = encoder(input_tensor)
-        breakpoint()
         decoder_outputs, _, _ = decoder(encoder_outputs, encoder_hidden, target_tensor)
         
-        embedded_target_tensor = decoder.embedding(target_tensor)
+        embedded_target_tensor = decoder.embedding(target_tensor) # we compare the embedding of the target
         loss = criterion(
             decoder_outputs.view(-1), embedded_target_tensor.view(-1)
         )
@@ -183,7 +183,14 @@ def train(
     showPlot(plot_losses)
     
     
-def evaluate(encoder, decoder, sentence, input_word2idx, output_word2idx):
+## PROBLEM: how to get a word given an arbitrary embedding? an embedder is just a lookup table!
+
+def embedding2word(embedding, w2v_model):
+    word, _ = w2v_model.wv.most_similar(positive=[embedding], topn=1)
+    print("works")
+    return word
+    
+def evaluate(encoder, decoder, sentence, input_word2idx, output_word2idx, input_w2v_model, output_w2v_model):
     with torch.no_grad():
         input_tensor = sent2idx(input_word2idx, sentence, MAX_LENGTH)
         input_tensor = torch.LongTensor(input_tensor)
@@ -192,14 +199,14 @@ def evaluate(encoder, decoder, sentence, input_word2idx, output_word2idx):
         decoder_outputs, decoder_hidden, _ = decoder(encoder_outputs.unsqueeze(0), encoder_hidden.unsqueeze(1), None)
         # decoder_outputs, decoder_hidden, _ = decoder(encoder_outputs, encoder_hidden, None)
 
-        breakpoint()
         # _, topi = decoder_outputs.topk(1)
         # decoded_ids = topi.squeeze()
-        decoder_idxs = 
-        decoded_words = []
-        for idx in decoded_ids:
-            if idx.item() == EOS_token:
-                decoded_words.append('<EOS>')
-                break
-            decoded_words.append(output_word2idx[idx.item()])
+        # decoder_idxs = [embedding2word(embedding) for embedding in encoder_outputs.squeeze()]
+        decoded_words = [embedding2word(embedding, output_w2v_model) for embedding in encoder_outputs.squeeze()]
+        decoded_words.append('<EOS>')
+        # for idx in decoder_idxs:
+        #     if idx.item() == EOS_token:
+        #         decoded_words.append('<EOS>')
+        #         break
+        #     decoded_words.append(output_word2idx[idx.item()])
     return decoded_words
