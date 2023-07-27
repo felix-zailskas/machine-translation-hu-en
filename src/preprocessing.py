@@ -7,6 +7,8 @@ from pathlib import Path
 from num2words import num2words
 from sklearn.model_selection import train_test_split
 
+from typing import List
+
 
 ## Normalisation methods used for every preprocessing pipeline ##
 def make_lower(s: str) -> str:
@@ -107,3 +109,30 @@ def split_and_save_dataframe(
     train_df.to_csv(out_dir + file_base_name + "_train.csv")
     val_df.to_csv(out_dir + file_base_name + "_val.csv")
     test_df.to_csv(out_dir + file_base_name + "_test.csv")
+
+
+def get_vocab(sentences: List[List]):
+    text = []
+    for sent in sentences:
+        text += sent
+    return set(text)
+
+def word2idx(vocab: List[str]):
+    w2i = {"<SOS>": 0, "<EOS>": 1}
+    n_words = 2
+    for word in vocab:
+        if word == "<SOS>" or word == "<EOS>":
+            continue
+        w2i[word] = n_words
+        n_words += 1
+    return w2i
+
+def sent2idx(word2idx, sentence, max_len):
+    idxs = np.zeros(max_len, dtype=np.int32)
+    word_idxs = [word2idx[word] for word in sentence]
+    word_idxs.append(word2idx["<EOS>"])
+    idxs[:len(word_idxs)] = word_idxs
+    return idxs
+
+def add_sentence_tokens(s: list):
+    return ["<SOS>"] + s + ["<EOS>"]
