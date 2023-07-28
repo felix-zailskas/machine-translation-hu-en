@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 
 from lang import LanguageDataset
-from preprocessing import get_vocab, word2idx, add_sentence_tokens
+from preprocessing import get_vocab, word2idx, idx2word, add_sentence_tokens
 from nltk.tokenize import wordpunct_tokenize
 from gensim.models import Word2Vec
 from model import *
@@ -62,14 +62,18 @@ dataset = LanguageDataset(
 )
 dataloader = DataLoader(dataset, batch_size=64, shuffle=True)
 
-# declare models and train
-n_epochs = 3
-encoder = EncoderRNN(MAX_LENGTH, embedding_dim, input_pretrained_embeddings).to(device)
-decoder = DecoderRNN(embedding_dim, MAX_LENGTH, output_pretrained_embeddings).to(device)
+# declare models 
+encoder = EncoderRNN(len(input_vocab), embedding_dim, input_pretrained_embeddings).to(device)
+decoder = DecoderRNN(embedding_dim, len(output_vocab), output_pretrained_embeddings).to(device)
+#decoder = AttnDecoderRNN(embedding_dim, len(output_vocab), output_pretrained_embeddings).to(device)
 
-#train(dataloader, encoder, decoder, n_epochs, print_every=1, plot_every=5)
-# torch.save(encoder.state_dict(), "models/encoder.model")
-# torch.save(decoder.state_dict(), "models/decoder.model")
+
+## train and save ##
+# n_epochs = 10
+# train(dataloader, encoder, decoder, n_epochs, print_every=1, plot_every=5)
+# torch.save(encoder.state_dict(), "models/encoder_attention.model")
+# torch.save(decoder.state_dict(), "models/decoder_attention.model")
+
 
 ## model eval ##
 # load trained model
@@ -79,7 +83,9 @@ decoder.load_state_dict(torch.load("models/decoder.model"))
 decoder.eval()
 
 # evaluate some sentence pairs
-output_words = evaluate(encoder, decoder, input_sentences[0], input_word2idx, output_word2idx, input_w2v_model, output_w2v_model)
+output_idx2word = idx2word(output_vocab)
+output_words = evaluate(encoder, decoder, input_sentences[2], input_word2idx, output_idx2word)
 output_sentence = " ".join(output_words)
 print(input_sentences[0])
+print("-----")
 print(output_sentence)

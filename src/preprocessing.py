@@ -127,6 +127,16 @@ def word2idx(vocab: List[str]):
         n_words += 1
     return w2i
 
+def idx2word(vocab: List[str]):
+    i2w = {0: "<SOS>", 1: "<EOS>"}
+    n_words = 2
+    for word in vocab:
+        if word == "<SOS>" or word == "<EOS>":
+            continue
+        i2w[n_words] = word
+        n_words += 1
+    return i2w
+
 def sent2idx(word2idx, sentence, max_len):
     idxs = np.zeros(max_len, dtype=np.int32)
     word_idxs = [word2idx[word] for word in sentence]
