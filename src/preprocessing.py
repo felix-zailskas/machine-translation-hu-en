@@ -140,9 +140,16 @@ def idx2word(vocab: List[str]):
 def sent2idx(word2idx, sentence, max_len):
     idxs = np.zeros(max_len, dtype=np.int32)
     word_idxs = [word2idx[word] for word in sentence]
-    word_idxs.append(word2idx["<EOS>"])
     idxs[:len(word_idxs)] = word_idxs
     return idxs
 
 def add_sentence_tokens(s: list):
     return ["<SOS>"] + s + ["<EOS>"]
+
+def trim_outliers(df, col_name, max_len):
+    valid = []
+    for i, sent in enumerate(df[col_name].values):
+        if len(sent) <= max_len:
+            valid.append(i)
+    return_df = df.iloc[np.array(valid)]
+    return return_df.reset_index(drop=True)    

@@ -3,7 +3,7 @@ from io import open
 import unicodedata
 import re
 import random
-
+from time import time
 import torch
 import torch.nn as nn
 from torch import optim
@@ -12,49 +12,39 @@ from torch.utils.data import TensorDataset, DataLoader, RandomSampler
 
 import numpy as np
 import pandas as pd
+import pickle
 
 from lang import LanguageDataset
-from preprocessing import get_vocab, word2idx, idx2word, add_sentence_tokens
+from preprocessing import get_vocab, word2idx, idx2word, add_sentence_tokens, trim_outliers
 from nltk.tokenize import wordpunct_tokenize
 from gensim.models import Word2Vec
 from model import *
+from constants import *
 
-MAX_LENGTH = 140
-embedding_dim = 100
-
-df = pd.read_csv("data/preprocessed/preprocessed_val.csv")
+df = pd.read_csv("data/preprocessed/preprocessed_train.csv")
 
 df["en_processed"] = df["en_processed"].apply(wordpunct_tokenize)
 df["hu_processed"] = df["hu_processed"].apply(wordpunct_tokenize)
+df = trim_outliers(df, "en_processed", MAX_WORDS)
+df = trim_outliers(df, "hu_processed", MAX_WORDS)
+print(len(df.index))
 df["en_processed"] = df["en_processed"].apply(add_sentence_tokens)
 df["hu_processed"] = df["hu_processed"].apply(add_sentence_tokens)
+
 input_sentences = df["en_processed"]
 output_sentences = df["hu_processed"]
 
-# declare embedding models 
-input_w2v_model = Word2Vec(
-    sentences=input_sentences, vector_size=embedding_dim, window=5, min_count=1, workers=4
-)
-input_w2v_model.save("models/word2vec_en.model")
-output_w2v_model = Word2Vec(
-    sentences=output_sentences, vector_size=embedding_dim, window=5, min_count=1, workers=4
-)
-output_w2v_model.save("models/word2vec_hu.model")
+input_pretrained_embeddings = torch.load("models/w2v_embeddings/embeddings_cbow_en.pt")
+output_pretrained_embeddings = torch.load("models/w2v_embeddings/embeddings_cbow_hu.pt")
 
-# get vocab and set up word -> idx dictionaries
-input_vocab = get_vocab(input_sentences.values)
-input_word2idx = word2idx(input_vocab)
-output_vocab = get_vocab(output_sentences.values)
-output_word2idx = word2idx(output_vocab)
-
-# extract Word2Vec embeddings for english and hu tokens -- might not need this?
-input_pretrained_embeddings = torch.zeros(len(input_vocab), input_w2v_model.vector_size)
-output_pretrained_embeddings = torch.zeros(len(output_vocab), output_w2v_model.vector_size)
-
-for word, index in input_word2idx.items():
-    input_pretrained_embeddings[index] = torch.tensor(input_w2v_model.wv[word])
-for word, index in output_word2idx.items():
-    output_pretrained_embeddings[index] = torch.tensor(output_w2v_model.wv[word])
+with open("models/word2index/word2index_cbow_en.pkl", 'rb') as fp:
+    input_word2idx = pickle.load(fp)
+with open("models/word2index/word2index_cbow_hu.pkl", 'rb') as fp:
+    output_word2idx = pickle.load(fp)
+with open("models/word2index/index2word_cbow_en.pkl", 'rb') as fp:
+    input_idx2word = pickle.load(fp)
+with open("models/word2index/index2word_cbow_hu.pkl", 'rb') as fp:
+    output_idx2word = pickle.load(fp)
 
 # create dataloader
 dataset = LanguageDataset(
@@ -63,29 +53,29 @@ dataset = LanguageDataset(
 dataloader = DataLoader(dataset, batch_size=64, shuffle=True)
 
 # declare models 
-encoder = EncoderRNN(len(input_vocab), embedding_dim, input_pretrained_embeddings).to(device)
-decoder = DecoderRNN(embedding_dim, len(output_vocab), output_pretrained_embeddings).to(device)
-#decoder = AttnDecoderRNN(embedding_dim, len(output_vocab), output_pretrained_embeddings).to(device)
+encoder = EncoderRNN(len(input_word2idx), EMBEDDING_DIM, input_pretrained_embeddings).to(device)
+#decoder = DecoderRNN(EMBEDDING_DIM, len(output_word2idx), output_pretrained_embeddings).to(device)
+decoder = AttnDecoderRNN(EMBEDDING_DIM, len(output_word2idx), output_pretrained_embeddings).to(device)
 
+# train and save ##
+n_epochs = 100
+train(dataloader, encoder, decoder, n_epochs, print_every=1, plot_every=1)
+torch.save(encoder.state_dict(), f"models/encoder_attention_train_{MAX_WORDS}_{n_epochs}.model")
+torch.save(decoder.state_dict(), f"models/decoder_attention_train_{MAX_WORDS}_{n_epochs}.model")
 
-## train and save ##
-# n_epochs = 10
-# train(dataloader, encoder, decoder, n_epochs, print_every=1, plot_every=5)
-# torch.save(encoder.state_dict(), "models/encoder_attention.model")
-# torch.save(decoder.state_dict(), "models/decoder_attention.model")
+# # ## model eval ##
+# # load trained model
+# encoder.load_state_dict(torch.load("models/encoder.model"))
+# encoder.eval()
+# decoder.load_state_dict(torch.load("models/decoder.model"))
+# decoder.eval()
 
-
-## model eval ##
-# load trained model
-encoder.load_state_dict(torch.load("models/encoder.model"))
-encoder.eval()
-decoder.load_state_dict(torch.load("models/decoder.model"))
-decoder.eval()
-
-# evaluate some sentence pairs
-output_idx2word = idx2word(output_vocab)
-output_words = evaluate(encoder, decoder, input_sentences[2], input_word2idx, output_idx2word)
-output_sentence = " ".join(output_words)
-print(input_sentences[0])
-print("-----")
-print(output_sentence)
+# # evaluate some sentence pairs
+# test_input_sentence = input_sentences[0]
+# test_output_sentence = output_sentences[0]
+# output_words = evaluate(encoder, decoder, test_input_sentence, input_word2idx, output_idx2word)
+# output_sentence = " ".join(output_words)
+# print(test_input_sentence)
+# print("-----")
+# print("Model output:", output_sentence)
+# print("Target:", test_output_sentence)

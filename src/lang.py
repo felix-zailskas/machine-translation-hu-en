@@ -2,10 +2,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 from preprocessing import sent2idx
-
-MAX_LENGTH = 140
-EOS_token = 1
-embedding_dim = 100
+from constants import *
 
 class LanguageDataset(Dataset):
     def __init__(
@@ -17,8 +14,8 @@ class LanguageDataset(Dataset):
         self.output_word2idx = output_word2idx
         
     def __getitem__(self, index):
-        data = sent2idx(self.input_word2idx, self.input_sentences[index], MAX_LENGTH)
-        target = sent2idx(self.output_word2idx, self.output_sentences[index], MAX_LENGTH)
+        data = sent2idx(self.input_word2idx, self.input_sentences[index], MAX_TOKENS)
+        target = sent2idx(self.output_word2idx, self.output_sentences[index], MAX_TOKENS)
         return torch.LongTensor(data), torch.LongTensor(target)
 
     def __len__(self):

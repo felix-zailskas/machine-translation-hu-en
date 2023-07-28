@@ -11,18 +11,17 @@ import torch.nn.functional as F
 
 import time
 import math
+from tqdm import tqdm
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler
 
+from constants import *
 from preprocessing import sent2idx
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-MAX_LENGTH = 140
-SOS_token = 0
-EOS_token = 1
 
 class EncoderRNN(nn.Module):
     def __init__(self, input_size, hidden_size, input_embeddings, dropout_p=0.1):
@@ -54,7 +53,7 @@ class DecoderRNN(nn.Module):
         decoder_hidden = encoder_hidden
         decoder_outputs = []
         
-        for i in range(MAX_LENGTH):
+        for i in range(MAX_TOKENS):
             decoder_output, decoder_hidden = self.forward_step(
                 decoder_input, decoder_hidden
             )
@@ -119,7 +118,7 @@ class AttnDecoderRNN(nn.Module):
         decoder_outputs = []
         attentions = []
 
-        for i in range(MAX_LENGTH):
+        for i in range(MAX_TOKENS):
             decoder_output, decoder_hidden, attn_weights = self.forward_step(
                 decoder_input, decoder_hidden, encoder_outputs
             )
@@ -159,7 +158,7 @@ def train_epoch(
 ):
 
     total_loss = 0
-    for data in dataloader:
+    for data in tqdm(dataloader):
         input_tensor, target_tensor = data
 
         encoder_optimizer.zero_grad()
@@ -268,14 +267,14 @@ def embedding2word(embedding, w2v_model):
     
 def evaluate(encoder, decoder, sentence, input_word2idx, output_index2word):
     with torch.no_grad():
-        input_tensor = sent2idx(input_word2idx, sentence, MAX_LENGTH)
+        input_tensor = sent2idx(input_word2idx, sentence, MAX_TOKENS)
         input_tensor = torch.LongTensor(input_tensor)
         encoder_outputs, encoder_hidden = encoder(input_tensor)
         
-        decoder_outputs, decoder_hidden, decoder_attn = decoder(encoder_outputs.unsqueeze(0), encoder_hidden.unsqueeze(1))
-        # decoder_outputs, decoder_hidden, _ = decoder(encoder_outputs.unsqueeze(0), encoder_hidden.unsqueeze(1), None)
-        # decoder_outputs, decoder_hidden, _ = decoder(encoder_outputs, encoder_hidden, None)
-
+        encoder_outputs = encoder_outputs.unsqueeze(0)
+        encoder_hidden = encoder_hidden.unsqueeze(0)
+        
+        decoder_outputs, decoder_hidden, decoder_attn = decoder(encoder_outputs, encoder_hidden)
         _, topi = decoder_outputs.topk(1)
         decoded_ids = topi.squeeze()
         
@@ -285,8 +284,5 @@ def evaluate(encoder, decoder, sentence, input_word2idx, output_index2word):
                 decoded_words.append('<EOS>')
                 break
             decoded_words.append(output_index2word[idx.item()])
-        # decoder_idxs = [embedding2word(embedding) for embedding in encoder_outputs.squeeze()]
-        # decoded_words = [embedding2word(embedding, output_w2v_model) for embedding in encoder_outputs.squeeze()]
-        # decoded_words.append('<EOS>')
 
     return decoded_words
