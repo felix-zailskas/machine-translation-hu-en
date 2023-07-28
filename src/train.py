@@ -52,16 +52,24 @@ dataset = LanguageDataset(
 )
 dataloader = DataLoader(dataset, batch_size=64, shuffle=True)
 
+
+
+translation = "en_hu"
+embedding = "cbow"
+attention = "basic"
+
 # declare models 
 encoder = EncoderRNN(len(input_word2idx), EMBEDDING_DIM, input_pretrained_embeddings).to(device)
-#decoder = DecoderRNN(EMBEDDING_DIM, len(output_word2idx), output_pretrained_embeddings).to(device)
-decoder = AttnDecoderRNN(EMBEDDING_DIM, len(output_word2idx), output_pretrained_embeddings).to(device)
+if attention == "basic":
+    decoder = DecoderRNN(EMBEDDING_DIM, len(output_word2idx), output_pretrained_embeddings).to(device)
+elif attention == "attention":
+    decoder = AttnDecoderRNN(EMBEDDING_DIM, len(output_word2idx), output_pretrained_embeddings).to(device)
 
 # train and save ##
-n_epochs = 100
+n_epochs = 10
 train(dataloader, encoder, decoder, n_epochs, print_every=1, plot_every=1)
-torch.save(encoder.state_dict(), f"models/encoder_attention_train_{MAX_WORDS}_{n_epochs}.model")
-torch.save(decoder.state_dict(), f"models/decoder_attention_train_{MAX_WORDS}_{n_epochs}.model")
+torch.save(encoder.state_dict(), f"models/{translation}/{embedding}/{attention}/encoder_{MAX_WORDS}_{n_epochs}.model")
+torch.save(decoder.state_dict(), f"models/{translation}/{embedding}/{attention}/decoder_{MAX_WORDS}_{n_epochs}.model")
 
 # # ## model eval ##
 # # load trained model

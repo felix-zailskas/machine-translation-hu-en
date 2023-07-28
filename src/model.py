@@ -24,26 +24,33 @@ from preprocessing import sent2idx
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class EncoderRNN(nn.Module):
-    def __init__(self, input_size, hidden_size, input_embeddings, dropout_p=0.1):
+    def __init__(self, input_size, hidden_size, input_embeddings = None, dropout_p=0.1):
         super(EncoderRNN, self).__init__()
         self.hidden_size = hidden_size
-        #self.embedding = nn.Embedding(input_size, hidden_size)
-        self.embedding = nn.Embedding.from_pretrained(input_embeddings, freeze=False)
+        if input_embeddings is None:
+            self.embedding = nn.Embedding(input_size, hidden_size)
+        else:
+            self.embedding = nn.Embedding.from_pretrained(input_embeddings, freeze=False)
         self.gru = nn.GRU(hidden_size, hidden_size, batch_first=True)
-        #self.dropout = nn.Dropout(dropout_p)
+        self.dropout = nn.Dropout(dropout_p)
 
     def forward(self, input_seq):
         embedded = self.embedding(input_seq)
-        # embedded = self.dropout(input_seq)
+        embedded = self.dropout(embedded)
         output, hidden = self.gru(embedded)
         return output, hidden
 
 class DecoderRNN(nn.Module):
-    def __init__(self, hidden_size, output_size, output_embeddings):
+    def __init__(self, hidden_size, output_size, output_embeddings = None, dropout_p = 0.1):
         super(DecoderRNN, self).__init__()
-        self.embedding = nn.Embedding.from_pretrained(output_embeddings, freeze=False)
+        if output_embeddings is None:
+            self.embedding = nn.Embedding(input_size, hidden_size)
+        else:    
+            self.embedding = nn.Embedding.from_pretrained(output_embeddings, freeze=False)
         self.gru = nn.GRU(hidden_size, hidden_size, batch_first=True)
         self.out = nn.Linear(hidden_size, output_size)
+        self.dropout = nn.Dropout(dropout_p)
+
 
     def forward(self, encoder_outputs, encoder_hidden, target_tensor=None):
         batch_size = encoder_outputs.size(0)
@@ -78,8 +85,8 @@ class DecoderRNN(nn.Module):
         )  # We return `None` for consistency in the training loop
 
     def forward_step(self, input_seq, hidden):
-        output = self.embedding(input_seq)
-        output = F.relu(output)
+        embedded =  self.dropout(self.embedding(input_seq))
+        output = F.relu(embedded)
         output, hidden = self.gru(output, hidden)
         output = self.out(output)
         return output, hidden
@@ -102,10 +109,12 @@ class BahdanauAttention(nn.Module):
         return context, weights
 
 class AttnDecoderRNN(nn.Module):
-    def __init__(self, hidden_size, output_size, output_embeddings, dropout_p=0.1):
+    def __init__(self, hidden_size, output_size, output_embeddings=None, dropout_p=0.1):
         super(AttnDecoderRNN, self).__init__()
-        #self.embedding = nn.Embedding(output_size, hidden_size)
-        self.embedding = nn.Embedding.from_pretrained(output_embeddings, freeze=False)
+        if output_embeddings is None:
+            self.embedding = nn.Embedding(output_size, hidden_size)
+        else:
+            self.embedding = nn.Embedding.from_pretrained(output_embeddings, freeze=False)
         self.attention = BahdanauAttention(hidden_size)
         self.gru = nn.GRU(2 * hidden_size, hidden_size, batch_first=True)
         self.out = nn.Linear(hidden_size, output_size)
