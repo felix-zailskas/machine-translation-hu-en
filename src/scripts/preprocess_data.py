@@ -11,6 +11,7 @@ from data.preprocessing import (
     apply_default_pipeline,
     split_and_save_dataframe,
     trim_outliers,
+    remove_duplicates,
 )
 from utils.constants import MAX_WORDS
 
@@ -31,6 +32,8 @@ df["en_tokens"] = df["en_processed"].apply(wordpunct_tokenize)
 df["hu_tokens"] = df["hu_processed"].apply(wordpunct_tokenize)
 df = trim_outliers(df, "en_tokens", MAX_WORDS)
 df = trim_outliers(df, "hu_tokens", MAX_WORDS)
+df = remove_duplicates(df, "en_tokens")
+df = remove_duplicates(df, "hu_tokens")
 df = df.drop("en_tokens", axis=1)
 df = df.drop("hu_tokens", axis=1)
 

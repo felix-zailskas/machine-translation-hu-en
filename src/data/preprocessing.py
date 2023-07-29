@@ -155,5 +155,15 @@ def trim_outliers(df, col_name, max_len):
     for i, sent in enumerate(df[col_name].values):
         if len(sent) <= max_len:
             valid.append(i)
-    return_df = df.iloc[np.array(valid)]
+    return_df = df.copy().iloc[np.array(valid)]
+    return return_df.reset_index(drop=True)
+
+
+def remove_duplicates(df, col_name):
+    return_df = df.copy()
+    return_df["tmp_col_remove_duplicates"] = df[col_name].apply(tuple)
+    return_df = return_df[
+        ~return_df.duplicated(subset="tmp_col_remove_duplicates", keep=False)
+    ]
+    return_df.drop(columns=["tmp_col_remove_duplicates"], inplace=True)
     return return_df.reset_index(drop=True)
