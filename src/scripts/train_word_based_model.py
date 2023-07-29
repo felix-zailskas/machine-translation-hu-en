@@ -15,7 +15,7 @@ from data.dataset import LanguageDataset
 from data.preprocessing import add_sentence_tokens
 from model.model import AttnDecoderRNN, DecoderRNN, EncoderRNN, device
 from model.train import train
-from utils.constants import BATCH_SIZE, EMBEDDING_DIM, MAX_WORDS
+from utils.constants import BATCH_SIZE, EMBEDDING_DIM, MAX_WORDS, LEARNING_RATE
 
 # Set Parameters before training
 in_lang = "en"
@@ -23,7 +23,7 @@ out_lang = "hu"
 translation = f"{in_lang}_{out_lang}"
 embedding = "cbow"
 attention = "basic"
-n_epochs = 10
+n_epochs = 100
 
 df = pd.read_csv("data/preprocessed/preprocessed_train.csv")
 
@@ -72,7 +72,7 @@ elif attention == "attention":
     ).to(device)
 
 # train and save
-train(dataloader, encoder, decoder, n_epochs, print_every=1, plot_every=1)
+train(dataloader, encoder, decoder, n_epochs, learning_rate=LEARNING_RATE, print_every=1, plot_every=1)
 Path(f"models/{translation}/{embedding}/{attention}").mkdir(parents=True, exist_ok=True)
 torch.save(
     encoder.state_dict(),
