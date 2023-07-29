@@ -32,7 +32,14 @@ class EncoderRNN(nn.Module):
 
 
 class DecoderRNN(nn.Module):
-    def __init__(self, hidden_size, output_size, output_embeddings=None, dropout_p=0.1):
+    def __init__(
+        self,
+        hidden_size,
+        output_size,
+        max_tokens=MAX_TOKENS,
+        output_embeddings=None,
+        dropout_p=0.1,
+    ):
         super(DecoderRNN, self).__init__()
         if output_embeddings is None:
             self.embedding = nn.Embedding(output_size, hidden_size)
@@ -43,6 +50,7 @@ class DecoderRNN(nn.Module):
         self.gru = nn.GRU(hidden_size, hidden_size, batch_first=True)
         self.out = nn.Linear(hidden_size, output_size)
         self.dropout = nn.Dropout(dropout_p)
+        self.max_tokens = max_tokens
 
     def forward(self, encoder_outputs, encoder_hidden, target_tensor=None):
         batch_size = encoder_outputs.size(0)
@@ -52,7 +60,7 @@ class DecoderRNN(nn.Module):
         decoder_hidden = encoder_hidden
         decoder_outputs = []
 
-        for i in range(MAX_TOKENS):
+        for i in range(self.max_tokens):
             decoder_output, decoder_hidden = self.forward_step(
                 decoder_input, decoder_hidden
             )
@@ -103,7 +111,14 @@ class BahdanauAttention(nn.Module):
 
 
 class AttnDecoderRNN(nn.Module):
-    def __init__(self, hidden_size, output_size, output_embeddings=None, dropout_p=0.1):
+    def __init__(
+        self,
+        hidden_size,
+        output_size,
+        max_tokens=MAX_TOKENS,
+        output_embeddings=None,
+        dropout_p=0.1,
+    ):
         super(AttnDecoderRNN, self).__init__()
         if output_embeddings is None:
             self.embedding = nn.Embedding(output_size, hidden_size)
@@ -115,6 +130,7 @@ class AttnDecoderRNN(nn.Module):
         self.gru = nn.GRU(2 * hidden_size, hidden_size, batch_first=True)
         self.out = nn.Linear(hidden_size, output_size)
         self.dropout = nn.Dropout(dropout_p)
+        self.max_tokens = max_tokens
 
     def forward(self, encoder_outputs, encoder_hidden, target_tensor=None):
         batch_size = encoder_outputs.size(0)
@@ -125,7 +141,7 @@ class AttnDecoderRNN(nn.Module):
         decoder_outputs = []
         attentions = []
 
-        for i in range(MAX_TOKENS):
+        for i in range(self.max_tokens):
             decoder_output, decoder_hidden, attn_weights = self.forward_step(
                 decoder_input, decoder_hidden, encoder_outputs
             )

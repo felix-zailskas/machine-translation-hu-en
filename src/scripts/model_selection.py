@@ -16,8 +16,6 @@ from model.eval import evaluate_dataset
 from model.model import AttnDecoderRNN, DecoderRNN, EncoderRNN, device
 from utils.constants import *
 
-
-
 learning_rates = [0.1, 0.01, 0.001]
 batch_sizes = [32, 64, 128]
 
@@ -55,19 +53,19 @@ with open(f"models/word2index/index2word_{embedding}_{in_lang}.pkl", "rb") as fp
     input_idx2word = pickle.load(fp)
 with open(f"models/word2index/index2word_{embedding}_{out_lang}.pkl", "rb") as fp:
     output_idx2word = pickle.load(fp)
-    
- 
+
+
 encoder = EncoderRNN(
-    len(input_word2idx), EMBEDDING_DIM, input_pretrained_embeddings
+    len(input_word2idx), WORD_EMBEDDING_DIM, input_pretrained_embeddings
 ).to(device)
 if attention == "basic":
     decoder = DecoderRNN(
-        EMBEDDING_DIM, len(output_word2idx), output_pretrained_embeddings
+        WORD_EMBEDDING_DIM, len(output_word2idx), output_pretrained_embeddings
     ).to(device)
 elif attention == "attention":
     decoder = AttnDecoderRNN(
-        EMBEDDING_DIM, len(output_word2idx), output_pretrained_embeddings
-    ).to(device)   
+        WORD_EMBEDDING_DIM, len(output_word2idx), output_pretrained_embeddings
+    ).to(device)
 
 one_gram_scores = {}
 two_gram_scores = {}
@@ -104,17 +102,24 @@ for learning_rate in learning_rates:
             output_idx2word,
             weights=(0.5, 0.5, 0, 0),
         )
-        one_gram_scores[f"{str(learning_rate).replace('.','')}_{batch_size}"] = one_gram_bleu_scores.mean()
-        two_gram_scores[f"{str(learning_rate).replace('.','')}_{batch_size}"] = two_gram_bleu_scores.mean()
-
+        one_gram_scores[
+            f"{str(learning_rate).replace('.','')}_{batch_size}"
+        ] = one_gram_bleu_scores.mean()
+        two_gram_scores[
+            f"{str(learning_rate).replace('.','')}_{batch_size}"
+        ] = two_gram_bleu_scores.mean()
 
 
 ranks = {}
-for i, (key, value) in enumerate(sorted(one_gram_scores.items(), key = lambda item: -item[1])):
+for i, (key, value) in enumerate(
+    sorted(one_gram_scores.items(), key=lambda item: -item[1])
+):
     ranks[key] = i + 1
-for i, (key, value) in enumerate(sorted(two_gram_scores.items(), key = lambda item: -item[1])):
+for i, (key, value) in enumerate(
+    sorted(two_gram_scores.items(), key=lambda item: -item[1])
+):
     ranks[key] += i + 1
     ranks[key] /= 2
 
-for key, value in sorted(ranks.items(), key = lambda item: item[1]):
+for key, value in sorted(ranks.items(), key=lambda item: item[1]):
     print(f"{key}: {value}")

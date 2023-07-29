@@ -11,10 +11,10 @@ from utils.constants import EOS_TOKEN, MAX_TOKENS
 
 
 def evaluate_single_sentence(
-    encoder, decoder, sentence, input_word2idx, output_index2word
+    encoder, decoder, sentence, input_word2idx, output_index2word, max_tokens=MAX_TOKENS
 ):
     with torch.no_grad():
-        input_tensor = sent2idx(input_word2idx, sentence, MAX_TOKENS)
+        input_tensor = sent2idx(input_word2idx, sentence, max_tokens)
         input_tensor = torch.LongTensor(input_tensor)
         encoder_outputs, encoder_hidden = encoder(input_tensor)
 

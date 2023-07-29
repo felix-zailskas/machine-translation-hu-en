@@ -9,9 +9,9 @@ from nltk.tokenize import wordpunct_tokenize
 from data.preprocessing import (
     add_sentence_tokens,
     apply_default_pipeline,
+    remove_duplicates,
     split_and_save_dataframe,
     trim_outliers,
-    remove_duplicates,
 )
 from utils.constants import MAX_WORDS
 

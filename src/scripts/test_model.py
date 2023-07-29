@@ -14,7 +14,7 @@ from nltk.tokenize import wordpunct_tokenize
 from data.preprocessing import add_sentence_tokens
 from model.eval import evaluate_dataset
 from model.model import AttnDecoderRNN, DecoderRNN, EncoderRNN, device
-from utils.constants import EMBEDDING_DIM
+from utils.constants import WORD_EMBEDDING_DIM
 
 # Set Parameters before testing
 in_lang = "en"
@@ -56,15 +56,15 @@ with open(f"models/word2index/index2word_{embedding}_{out_lang}.pkl", "rb") as f
     output_idx2word = pickle.load(fp)
 
 encoder = EncoderRNN(
-    len(input_word2idx), EMBEDDING_DIM, input_pretrained_embeddings
+    len(input_word2idx), WORD_EMBEDDING_DIM, input_pretrained_embeddings
 ).to(device)
 if attention == "basic":
     decoder = DecoderRNN(
-        EMBEDDING_DIM, len(output_word2idx), output_pretrained_embeddings
+        WORD_EMBEDDING_DIM, len(output_word2idx), output_pretrained_embeddings
     ).to(device)
 elif attention == "attention":
     decoder = AttnDecoderRNN(
-        EMBEDDING_DIM, len(output_word2idx), output_pretrained_embeddings
+        WORD_EMBEDDING_DIM, len(output_word2idx), output_pretrained_embeddings
     ).to(device)
 
 
