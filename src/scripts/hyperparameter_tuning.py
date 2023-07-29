@@ -1,10 +1,13 @@
 import pickle
+import os.path
+import sys
 
+sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/..")
 import numpy as np
 import pandas as pd
 import torch
 from nltk.tokenize import wordpunct_tokenize
-from preprocessing import add_sentence_tokens
+from data.preprocessing import add_sentence_tokens
 from torch.utils.data import DataLoader
 
 from data.dataset import LanguageDataset
