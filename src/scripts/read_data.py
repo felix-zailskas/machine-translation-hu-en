@@ -1,5 +1,6 @@
-import re
 import csv
+import re
+
 import pandas as pd
 
 sample_proportion = 0.1
@@ -31,7 +32,7 @@ def raw_to_csv(path1: str, path2: str, sample_proportion: float, offset: int):
             writer.writerow(row)
 
 
+print(
+    f"Reading {sample_proportion*100:.2f}% of the data from full file with offset {offset}..."
+)
 raw_to_csv(english_path, hungarian_path, sample_proportion, offset)
-
-# df = pd.read_csv("data/sampled_data.csv")
-# print(df.head())

@@ -1,14 +1,15 @@
-import pandas as pd
-import numpy as np
-from model import EncoderRNN, DecoderRNN, train, device
-from lang import LanguageDataset
-from torch.utils.data import DataLoader
-import torch
 import pickle
-from preprocessing import add_sentence_tokens
-from nltk.tokenize import wordpunct_tokenize
-from constants import *
 
+import numpy as np
+import pandas as pd
+import torch
+from nltk.tokenize import wordpunct_tokenize
+from preprocessing import add_sentence_tokens
+from torch.utils.data import DataLoader
+
+from data.dataset import LanguageDataset
+from model.model import DecoderRNN, EncoderRNN, device, train
+from utils.constants import *
 
 embedding_sizes = [100, 200, 300]
 learning_rates = [0.1, 0.01, 0.001]
@@ -32,15 +33,15 @@ output_sentences = df["hu_processed"]
 input_pretrained_embeddings = torch.load("models/w2v_embeddings/embeddings_cbow_en.pt")
 output_pretrained_embeddings = torch.load("models/w2v_embeddings/embeddings_cbow_hu.pt")
 
-with open("models/word2index/word2index_cbow_en.pkl", 'rb') as fp:
+with open("models/word2index/word2index_cbow_en.pkl", "rb") as fp:
     input_word2idx = pickle.load(fp)
-with open("models/word2index/word2index_cbow_hu.pkl", 'rb') as fp:
+with open("models/word2index/word2index_cbow_hu.pkl", "rb") as fp:
     output_word2idx = pickle.load(fp)
-with open("models/word2index/index2word_cbow_en.pkl", 'rb') as fp:
+with open("models/word2index/index2word_cbow_en.pkl", "rb") as fp:
     input_idx2word = pickle.load(fp)
-with open("models/word2index/index2word_cbow_hu.pkl", 'rb') as fp:
+with open("models/word2index/index2word_cbow_hu.pkl", "rb") as fp:
     output_idx2word = pickle.load(fp)
-    
+
 dataset = LanguageDataset(
     input_sentences, output_sentences, input_word2idx, output_word2idx
 )
@@ -50,9 +51,26 @@ for embedding_size in embedding_sizes:
         for batch_size in batch_sizes:
             name = f"{embedding_size}_{str(learning_rate).replace('.','')}_{batch_size}"
             dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
-            encoder = EncoderRNN(len(input_word2idx), embedding_size, input_pretrained_embeddings).to(device)
-            decoder = DecoderRNN(embedding_size, len(output_word2idx), output_pretrained_embeddings).to(device)
-            train(dataloader, encoder, decoder, n_epochs, learning_rate=learning_rate, print_every=1, plot_every=1)
-            torch.save(encoder.state_dict(), f"models/tuning/encoder_{MAX_WORDS}_{n_epochs}_{name}.model")
-            torch.save(decoder.state_dict(), f"models/tuning/decoder_{MAX_WORDS}_{n_epochs}_{name}.model")
-            
+            encoder = EncoderRNN(
+                len(input_word2idx), embedding_size, input_pretrained_embeddings
+            ).to(device)
+            decoder = DecoderRNN(
+                embedding_size, len(output_word2idx), output_pretrained_embeddings
+            ).to(device)
+            train(
+                dataloader,
+                encoder,
+                decoder,
+                n_epochs,
+                learning_rate=learning_rate,
+                print_every=1,
+                plot_every=1,
+            )
+            torch.save(
+                encoder.state_dict(),
+                f"models/tuning/encoder_{MAX_WORDS}_{n_epochs}_{name}.model",
+            )
+            torch.save(
+                decoder.state_dict(),
+                f"models/tuning/decoder_{MAX_WORDS}_{n_epochs}_{name}.model",
+            )
