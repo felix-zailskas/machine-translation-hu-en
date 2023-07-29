@@ -61,4 +61,4 @@ def evaluate_dataset(
         )
 
     bleu_scores = np.array(bleu_scores)
-    return bleu_score, predictions
+    return bleu_scores, predictions

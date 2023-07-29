@@ -88,7 +88,7 @@ one_gram_bleu_scores, predictions = evaluate_dataset(
     input_sentences,
     output_sentences,
     input_word2idx,
-    output_word2idx,
+    output_idx2word,
     weights=(1, 0, 0, 0),
 )
 two_gram_bleu_scores, _ = evaluate_dataset(
@@ -97,7 +97,7 @@ two_gram_bleu_scores, _ = evaluate_dataset(
     input_sentences,
     output_sentences,
     input_word2idx,
-    output_word2idx,
+    output_idx2word,
     weights=(0.5, 0.5, 0, 0),
 )
 
@@ -113,10 +113,11 @@ def display_topk_translations(
         if bottomk:
             i *= -1
         idx = order[-i]
-        print("Score: ", scores[idx])
-        print("Input Sentece: ", " ".join(input_sentences[idx][1:-1]))
-        print("Translation: ", " ".join(output_sentences[idx][1:-1]))
-        print("Target Sentece: ", " ".join(target_senteces[idx][1:-1]))
+        print("######")
+        print("\tScore: ", scores[idx])
+        print("\tInput Sentece: ", " ".join(input_sentences[idx][1:-1]))
+        print("\tTranslation: ", " ".join(output_sentences[idx][1:-1]))
+        print("\tTarget Sentece: ", " ".join(target_senteces[idx][1:-1]))
 
 
 def compute_score_per_sentece_length(input_lengths, scores):
@@ -135,15 +136,17 @@ def compute_score_per_sentece_length(input_lengths, scores):
 
 print(
     f"""
-    Model Results:
-        1-Gram bleu Score:
-            Max: {one_gram_bleu_scores.max()}
-            Min: {one_gram_bleu_scores.min()}
-            Mean: {one_gram_bleu_scores.mean()}
-        1-2-Gram bleu Score:
-            Max: {two_gram_bleu_scores.max()}
-            Min: {two_gram_bleu_scores.min()}
-            Mean: {two_gram_bleu_scores.mean()}
+--------------------------------------------------------------
+Model Results:
+    1-Gram bleu Score:
+        Max: {one_gram_bleu_scores.max()}
+        Min: {one_gram_bleu_scores.min()}
+        Mean: {one_gram_bleu_scores.mean()}
+    1-2-Gram bleu Score:
+        Max: {two_gram_bleu_scores.max()}
+        Min: {two_gram_bleu_scores.min()}
+        Mean: {two_gram_bleu_scores.mean()}
+--------------------------------------------------------------
 """
 )
 
@@ -151,6 +154,7 @@ print("Best 1-gram translations:")
 display_topk_translations(
     input_sentences, predictions, output_sentences, one_gram_bleu_scores, topk
 )
+print("--------------------------------------------------------------")
 print("Worst 1-gram translations:")
 display_topk_translations(
     input_sentences,
@@ -160,10 +164,12 @@ display_topk_translations(
     topk,
     bottomk=True,
 )
+print("--------------------------------------------------------------")
 print("Best 1-2-gram translations:")
 display_topk_translations(
     input_sentences, predictions, output_sentences, two_gram_bleu_scores, topk
 )
+print("--------------------------------------------------------------")
 print("Worst 1-2-gram translations:")
 display_topk_translations(
     input_sentences,
@@ -173,6 +179,19 @@ display_topk_translations(
     topk,
     bottomk=True,
 )
+print("--------------------------------------------------------------")
+print("Sentence Length Counts:")
+input_lengths = np.array([len(sent) - 2 for sent in input_sentences])
+one_gram_avg_scores = compute_score_per_sentece_length(
+    input_lengths, one_gram_bleu_scores
+)
+two_gram_avg_scores = compute_score_per_sentece_length(
+    input_lengths, two_gram_bleu_scores
+)
+unique_lengths, frequencies = np.unique(input_lengths, return_counts=True)
+for length, frequency in zip(unique_lengths, frequencies):
+    print(f"\tLength {length}: {frequency} sentences")
+print("--------------------------------------------------------------")
 
 # Show Plots
 plt.hist(one_gram_bleu_scores)
@@ -188,33 +207,22 @@ plt.ylabel("Frequency")
 plt.show()
 
 
-input_lengths = np.array([len(sent) - 2 for sent in input_sentences])
-one_gram_avg_scores = compute_score_per_sentece_length(
-    input_lengths, one_gram_bleu_scores
-)
-two_gram_avg_scores = compute_score_per_sentece_length(
-    input_lengths, two_gram_bleu_scores
-)
+x = list(one_gram_avg_scores.keys())
+y = list(one_gram_avg_scores.values())
+x, y = zip(*sorted(zip(x, y)))
 
-
-plt.plot(
-    list(one_gram_avg_scores.keys()),
-    list(one_gram_avg_scores.values()),
-    marker="o",
-    linestyle="-",
-)
+plt.plot(x, y, marker="o")
 plt.title("Average 1-gram BLEU score compared to input sentence length")
 plt.xlabel("Sentence length")
 plt.ylabel("BLEU Score")
 plt.grid(True)
 plt.show()
 
-plt.plot(
-    list(two_gram_avg_scores.keys()),
-    list(two_gram_avg_scores.values()),
-    marker="o",
-    linestyle="-",
-)
+x = list(two_gram_avg_scores.keys())
+y = list(two_gram_avg_scores.values())
+x, y = zip(*sorted(zip(x, y)))
+
+plt.plot(x, y, marker="o")
 plt.title("Average 1-gram BLEU score compared to input sentence length")
 plt.xlabel("Sentence length")
 plt.ylabel("BLEU Score")
