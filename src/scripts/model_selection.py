@@ -91,7 +91,6 @@ for learning_rate in learning_rates:
             output_sentences,
             input_word2idx,
             output_idx2word,
-            weights=[(1, 0, 0, 0), (0.5, 0.5, 0, 0)],
         )
         one_gram_bleu_scores = all_bleu_scores[0]
         two_gram_bleu_scores = all_bleu_scores[1]

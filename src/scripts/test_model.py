@@ -30,20 +30,19 @@ input_sentences, output_sentences, max_tokens = load_dataset(in_lang, out_lang, 
 encoder.eval()
 decoder.eval()
 
-all_gram_bleu_scores, predictions = evaluate_dataset(
+all_scores, predictions = evaluate_dataset(
     encoder,
     decoder,
     input_sentences,
     output_sentences,
     input_word2idx,
     output_idx2word,
-    weights=[(1, 0, 0, 0), (0.5, 0.5, 0, 0)],
 )
-one_gram_bleu_scores = all_gram_bleu_scores[0]
-two_gram_bleu_scores = all_gram_bleu_scores[1]
+one_gram_bleu_scores = all_scores[0]
+one_gram_nist_score = all_scores[1]
 
-one_gram_order = np.argsort(one_gram_bleu_scores)
-two_gram_order = np.argsort(two_gram_bleu_scores)
+bleu_order = np.argsort(one_gram_bleu_scores)
+nist_order = np.argsort(one_gram_nist_score)
 
 
 def display_topk_translations(
@@ -85,20 +84,20 @@ Model Results:
         Max: {one_gram_bleu_scores.max()}
         Min: {one_gram_bleu_scores.min()}
         Mean: {one_gram_bleu_scores.mean()}
-    1-2-Gram bleu Score:
-        Max: {two_gram_bleu_scores.max()}
-        Min: {two_gram_bleu_scores.min()}
-        Mean: {two_gram_bleu_scores.mean()}
+    1-Gram nist Score:
+        Max: {one_gram_nist_score.max()}
+        Min: {one_gram_nist_score.min()}
+        Mean: {one_gram_nist_score.mean()}
 --------------------------------------------------------------
 """
 )
 
-print("Best 1-gram translations:")
+print("Best bleu translations:")
 display_topk_translations(
     input_sentences, predictions, output_sentences, one_gram_bleu_scores, topk
 )
 print("--------------------------------------------------------------")
-print("Worst 1-gram translations:")
+print("Worst bleu translations:")
 display_topk_translations(
     input_sentences,
     predictions,
@@ -108,17 +107,17 @@ display_topk_translations(
     bottomk=True,
 )
 print("--------------------------------------------------------------")
-print("Best 1-2-gram translations:")
+print("Best nist translations:")
 display_topk_translations(
-    input_sentences, predictions, output_sentences, two_gram_bleu_scores, topk
+    input_sentences, predictions, output_sentences, one_gram_nist_score, topk
 )
 print("--------------------------------------------------------------")
-print("Worst 1-2-gram translations:")
+print("Worst nist translations:")
 display_topk_translations(
     input_sentences,
     predictions,
     output_sentences,
-    two_gram_bleu_scores,
+    one_gram_nist_score,
     topk,
     bottomk=True,
 )
@@ -129,7 +128,7 @@ one_gram_avg_scores = compute_score_per_sentece_length(
     input_lengths, one_gram_bleu_scores
 )
 two_gram_avg_scores = compute_score_per_sentece_length(
-    input_lengths, two_gram_bleu_scores
+    input_lengths, one_gram_nist_score
 )
 unique_lengths, frequencies = np.unique(input_lengths, return_counts=True)
 for length, frequency in zip(unique_lengths, frequencies):
@@ -143,9 +142,9 @@ plt.xlabel("1-gram BLEU Score")
 plt.ylabel("Frequency")
 plt.show()
 
-plt.hist(two_gram_bleu_scores)
-plt.title("Distribution of BLEU scores for 1-gram and 2-gram average evaluation")
-plt.xlabel("1-gram and 2-gram average BLEU Score")
+plt.hist(one_gram_nist_score)
+plt.title("Distribution of NIST scores for 1-gram average evaluation")
+plt.xlabel("1-gram average NIST Score")
 plt.ylabel("Frequency")
 plt.show()
 
@@ -166,9 +165,9 @@ y = list(two_gram_avg_scores.values())
 x, y = zip(*sorted(zip(x, y)))
 
 plt.plot(x, y, marker="o")
-plt.title("Average 1-gram and 2-gram BLEU score compared to input sentence length")
+plt.title("Average 1-gram NIST score compared to input sentence length")
 plt.xlabel("Sentence length")
-plt.ylabel("BLEU Score")
+plt.ylabel("NIST Score")
 plt.grid(True)
 plt.show()
 
@@ -201,4 +200,4 @@ def evaluateAndShowAttention(input_sentence):
 
 if attention == "attention":
     evaluateAndShowAttention(input_sentences[np.argsort(one_gram_bleu_scores)[-1]])
-    evaluateAndShowAttention(input_sentences[np.argsort(two_gram_bleu_scores)[-1]])
+    evaluateAndShowAttention(input_sentences[np.argsort(one_gram_nist_score)[-1]])

@@ -4,7 +4,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/..")
 import numpy as np
 import torch
-from nltk.translate import bleu_score
+from nltk.translate import bleu_score, nist_score
 
 from data.preprocessing import sent2idx
 from utils.constants import EOS_TOKEN, MAX_TOKENS
@@ -43,9 +43,10 @@ def evaluate_dataset(
     expected_output,
     input_word2idx,
     output_idx2word,
-    weights=[(1, 0, 0, 0)],
+    weights=(1, 0, 0, 0),
     max_tokens=MAX_TOKENS,
     char_model=False,
+    n=1,
 ):
     predictions = [
         evaluate_single_sentence(
@@ -64,13 +65,12 @@ def evaluate_dataset(
         targets = ["".join(target).split(" ") for target in targets]
         predictions = ["".join(prediction).split(" ") for prediction in predictions]
 
-    bleu_scores = []
-    for i, weight in enumerate(weights):
-        bleu_scores.append([])
-        for prediction, target in zip(predictions, targets):
-            bleu_scores[i].append(
-                bleu_score.sentence_bleu([target], prediction, weights=weight)
-            )
+    scores = [[], []]
+    for prediction, target in zip(predictions, targets):
+        scores[0].append(
+            bleu_score.sentence_bleu([target], prediction, weights=weights)
+        )
+        scores[1].append(nist_score.sentence_nist([target], prediction, n=n))
 
-    bleu_scores = np.array(bleu_scores)
-    return bleu_scores, predictions
+    scores = np.array(scores)
+    return scores, predictions
