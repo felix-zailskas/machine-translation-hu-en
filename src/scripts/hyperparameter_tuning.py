@@ -36,13 +36,13 @@ output_sentences = df["hu_processed"]
 input_pretrained_embeddings = torch.load("models/w2v_embeddings/embeddings_cbow_en.pt")
 output_pretrained_embeddings = torch.load("models/w2v_embeddings/embeddings_cbow_hu.pt")
 
-with open("models/word2index/word2index_cbow_en.pkl", "rb") as fp:
+with open("models/word2index/word2index_en.pkl", "rb") as fp:
     input_word2idx = pickle.load(fp)
-with open("models/word2index/word2index_cbow_hu.pkl", "rb") as fp:
+with open("models/word2index/word2index_hu.pkl", "rb") as fp:
     output_word2idx = pickle.load(fp)
-with open("models/word2index/index2word_cbow_en.pkl", "rb") as fp:
+with open("models/word2index/index2word_en.pkl", "rb") as fp:
     input_idx2word = pickle.load(fp)
-with open("models/word2index/index2word_cbow_hu.pkl", "rb") as fp:
+with open("models/word2index/index2word_hu.pkl", "rb") as fp:
     output_idx2word = pickle.load(fp)
 
 dataset = LanguageDataset(

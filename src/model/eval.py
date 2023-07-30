@@ -33,8 +33,7 @@ def evaluate_single_sentence(
                 decoded_words.append("<EOS>")
                 break
             decoded_words.append(output_index2word[idx.item()])
-
-    return decoded_words
+    return decoded_words, decoder_attn
 
 
 def evaluate_dataset(
@@ -44,21 +43,34 @@ def evaluate_dataset(
     expected_output,
     input_word2idx,
     output_idx2word,
-    weights=(1, 0, 0, 0),
+    weights=[(1, 0, 0, 0)],
+    max_tokens=MAX_TOKENS,
+    char_model=False,
 ):
     predictions = [
         evaluate_single_sentence(
-            encoder, decoder, test_input_sentence, input_word2idx, output_idx2word
-        )[1:-1]
+            encoder,
+            decoder,
+            test_input_sentence,
+            input_word2idx,
+            output_idx2word,
+            max_tokens=max_tokens,
+        )[0][1:-1]
         for test_input_sentence in input_sentences
     ]
     targets = [sentence[1:-1] for sentence in expected_output]
 
+    if char_model:
+        targets = ["".join(target).split(" ") for target in targets]
+        predictions = ["".join(prediction).split(" ") for prediction in predictions]
+
     bleu_scores = []
-    for prediction, target in zip(predictions, targets):
-        bleu_scores.append(
-            bleu_score.sentence_bleu([target], prediction, weights=weights)
-        )
+    for i, weight in enumerate(weights):
+        bleu_scores.append([])
+        for prediction, target in zip(predictions, targets):
+            bleu_scores[i].append(
+                bleu_score.sentence_bleu([target], prediction, weights=weight)
+            )
 
     bleu_scores = np.array(bleu_scores)
     return bleu_scores, predictions

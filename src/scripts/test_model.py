@@ -3,103 +3,44 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/..")
 
-import pickle
-
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 import numpy as np
-import pandas as pd
-import torch
-from nltk.tokenize import wordpunct_tokenize
 
-from data.preprocessing import add_sentence_tokens
-from model.eval import evaluate_dataset
-from model.model import AttnDecoderRNN, DecoderRNN, EncoderRNN, device
-from utils.constants import WORD_EMBEDDING_DIM
+from model.eval import evaluate_dataset, evaluate_single_sentence
+from utils.config import load_dataset, load_models_from_config, read_config_file
 
 # Set Parameters before testing
-in_lang = "en"
-out_lang = "hu"
-translation = f"{in_lang}_{out_lang}"
-embedding = "cbow"
-attention = "basic"
-model_specific_name = "10_10"
+cfg = "cfg/cfg0.yaml"
+config = read_config_file(cfg)
+in_lang = config["in_lang"]
+out_lang = config["out_lang"]
 dataset = "test"
-topk = 3
+attention = config["attention"]
+char_model = False
+topk = 1
 
-df = pd.read_csv(f"data/preprocessed/preprocessed_{dataset}.csv")
-df["en_processed"] = df["en_processed"].apply(wordpunct_tokenize)
-df["hu_processed"] = df["hu_processed"].apply(wordpunct_tokenize)
-df["en_processed"] = df["en_processed"].apply(add_sentence_tokens)
-df["hu_processed"] = df["hu_processed"].apply(add_sentence_tokens)
+input_sentences, output_sentences, max_tokens = load_dataset(in_lang, out_lang, dataset)
 
-input_sentences = df[f"{in_lang}_processed"]
-output_sentences = df[f"{out_lang}_processed"]
-
-print(
-    f"Testing model models/{translation}/{embedding}/{attention}/encoder_{model_specific_name}.model on a total of {len(input_sentences)} sentences..."
-)
-
-input_pretrained_embeddings = torch.load(
-    f"models/w2v_embeddings/embeddings_{embedding}_{in_lang}.pt"
-)
-output_pretrained_embeddings = torch.load(
-    f"models/w2v_embeddings/embeddings_{embedding}_{out_lang}.pt"
-)
-
-with open(f"models/word2index/word2index_{embedding}_{in_lang}.pkl", "rb") as fp:
-    input_word2idx = pickle.load(fp)
-with open(f"models/word2index/word2index_{embedding}_{out_lang}.pkl", "rb") as fp:
-    output_word2idx = pickle.load(fp)
-with open(f"models/word2index/index2word_{embedding}_{in_lang}.pkl", "rb") as fp:
-    input_idx2word = pickle.load(fp)
-with open(f"models/word2index/index2word_{embedding}_{out_lang}.pkl", "rb") as fp:
-    output_idx2word = pickle.load(fp)
-
-encoder = EncoderRNN(
-    len(input_word2idx), WORD_EMBEDDING_DIM, input_pretrained_embeddings
-).to(device)
-if attention == "basic":
-    decoder = DecoderRNN(
-        WORD_EMBEDDING_DIM, len(output_word2idx), output_pretrained_embeddings
-    ).to(device)
-elif attention == "attention":
-    decoder = AttnDecoderRNN(
-        WORD_EMBEDDING_DIM, len(output_word2idx), output_pretrained_embeddings
-    ).to(device)
-
-
-# load trained model
-encoder.load_state_dict(
-    torch.load(
-        f"models/{translation}/{embedding}/{attention}/encoder_{model_specific_name}.model"
-    )
-)
+(
+    encoder,
+    decoder,
+    (input_word2idx, output_word2idx, input_idx2word, output_idx2word),
+) = load_models_from_config(config, max_tokens, char_model=char_model)
 encoder.eval()
-decoder.load_state_dict(
-    torch.load(
-        f"models/{translation}/{embedding}/{attention}/decoder_{model_specific_name}.model"
-    )
-)
 decoder.eval()
 
-one_gram_bleu_scores, predictions = evaluate_dataset(
+all_gram_bleu_scores, predictions = evaluate_dataset(
     encoder,
     decoder,
     input_sentences,
     output_sentences,
     input_word2idx,
     output_idx2word,
-    weights=(1, 0, 0, 0),
+    weights=[(1, 0, 0, 0), (0.5, 0.5, 0, 0)],
 )
-two_gram_bleu_scores, _ = evaluate_dataset(
-    encoder,
-    decoder,
-    input_sentences,
-    output_sentences,
-    input_word2idx,
-    output_idx2word,
-    weights=(0.5, 0.5, 0, 0),
-)
+one_gram_bleu_scores = all_gram_bleu_scores[0]
+two_gram_bleu_scores = all_gram_bleu_scores[1]
 
 one_gram_order = np.argsort(one_gram_bleu_scores)
 two_gram_order = np.argsort(two_gram_bleu_scores)
@@ -112,6 +53,8 @@ def display_topk_translations(
     for i in range(k):
         if bottomk:
             i *= -1
+        else:
+            i += 1
         idx = order[-i]
         print("######")
         print("\tScore: ", scores[idx])
@@ -223,8 +166,39 @@ y = list(two_gram_avg_scores.values())
 x, y = zip(*sorted(zip(x, y)))
 
 plt.plot(x, y, marker="o")
-plt.title("Average 1-gram BLEU score compared to input sentence length")
+plt.title("Average 1-gram and 2-gram BLEU score compared to input sentence length")
 plt.xlabel("Sentence length")
 plt.ylabel("BLEU Score")
 plt.grid(True)
 plt.show()
+
+
+def showAttention(input_sentence, output_words, attentions):
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    cax = ax.matshow(attentions.cpu().numpy(), cmap="bone")
+    fig.colorbar(cax)
+
+    # Set up axes
+    ax.set_xticklabels([""] + input_sentence, rotation=90)
+    ax.set_yticklabels([""] + output_words)
+
+    # Show label at every tick
+    ax.xaxis.set_major_locator(ticker.MultipleLocator(1))
+    ax.yaxis.set_major_locator(ticker.MultipleLocator(1))
+
+    plt.show()
+
+
+def evaluateAndShowAttention(input_sentence):
+    output_words, attentions = evaluate_single_sentence(
+        encoder, decoder, input_sentence, input_word2idx, output_idx2word
+    )
+    print("input =", input_sentence)
+    print("output =", " ".join(output_words))
+    showAttention(input_sentence, output_words, attentions[0, : len(output_words), :])
+
+
+if attention == "attention":
+    evaluateAndShowAttention(input_sentences[np.argsort(one_gram_bleu_scores)[-1]])
+    evaluateAndShowAttention(input_sentences[np.argsort(two_gram_bleu_scores)[-1]])

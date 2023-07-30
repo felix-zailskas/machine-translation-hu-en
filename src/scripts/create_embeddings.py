@@ -44,3 +44,17 @@ create_w2v_embedding(
 create_w2v_embedding(
     pd.Series(hu_chars), "cbow_char_hu", w2i=c2i_hu, embedding_dim=CHAR_EMBEDDING_DIM
 )
+create_w2v_embedding(
+    pd.Series(en_chars),
+    "skip_char_en",
+    w2i=c2i_en,
+    embedding_dim=CHAR_EMBEDDING_DIM,
+    sg=1,
+)
+create_w2v_embedding(
+    pd.Series(hu_chars),
+    "skip_char_hu",
+    w2i=c2i_hu,
+    embedding_dim=CHAR_EMBEDDING_DIM,
+    sg=1,
+)

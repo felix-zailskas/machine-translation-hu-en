@@ -45,13 +45,13 @@ output_pretrained_embeddings = torch.load(
     f"models/w2v_embeddings/embeddings_{embedding}_{out_lang}.pt"
 )
 
-with open(f"models/word2index/word2index_{embedding}_{in_lang}.pkl", "rb") as fp:
+with open(f"models/word2index/word2index_{in_lang}.pkl", "rb") as fp:
     input_word2idx = pickle.load(fp)
-with open(f"models/word2index/word2index_{embedding}_{out_lang}.pkl", "rb") as fp:
+with open(f"models/word2index/word2index_{out_lang}.pkl", "rb") as fp:
     output_word2idx = pickle.load(fp)
-with open(f"models/word2index/index2word_{embedding}_{in_lang}.pkl", "rb") as fp:
+with open(f"models/word2index/index2word_{in_lang}.pkl", "rb") as fp:
     input_idx2word = pickle.load(fp)
-with open(f"models/word2index/index2word_{embedding}_{out_lang}.pkl", "rb") as fp:
+with open(f"models/word2index/index2word_{out_lang}.pkl", "rb") as fp:
     output_idx2word = pickle.load(fp)
 
 
@@ -84,24 +84,17 @@ for learning_rate in learning_rates:
             )
         )
         decoder.eval()
-        one_gram_bleu_scores, predictions = evaluate_dataset(
+        all_bleu_scores, predictions = evaluate_dataset(
             encoder,
             decoder,
             input_sentences,
             output_sentences,
             input_word2idx,
             output_idx2word,
-            weights=(1, 0, 0, 0),
+            weights=[(1, 0, 0, 0), (0.5, 0.5, 0, 0)],
         )
-        two_gram_bleu_scores, _ = evaluate_dataset(
-            encoder,
-            decoder,
-            input_sentences,
-            output_sentences,
-            input_word2idx,
-            output_idx2word,
-            weights=(0.5, 0.5, 0, 0),
-        )
+        one_gram_bleu_scores = all_bleu_scores[0]
+        two_gram_bleu_scores = all_bleu_scores[1]
         one_gram_scores[
             f"{str(learning_rate).replace('.','')}_{batch_size}"
         ] = one_gram_bleu_scores.mean()
