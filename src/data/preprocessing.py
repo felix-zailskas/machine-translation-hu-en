@@ -1,9 +1,10 @@
-import string
 import re
-
-import pandas as pd
-import numpy as np
+import string
 from pathlib import Path
+from typing import List
+
+import numpy as np
+import pandas as pd
 from num2words import num2words
 from sklearn.model_selection import train_test_split
 
@@ -32,7 +33,7 @@ def remove_invalid_dash(s: str) -> str:
 
 
 def remove_punctuation(s: str) -> str:
-    valid_punctuations = [".", ",", "!", "?", "'", "-"]
+    valid_punctuations = [",", "'", "-"]
     invalid_punctuation = string.punctuation
     for p in valid_punctuations:
         invalid_punctuation = invalid_punctuation.replace(p, "")
@@ -107,3 +108,62 @@ def split_and_save_dataframe(
     train_df.to_csv(out_dir + file_base_name + "_train.csv")
     val_df.to_csv(out_dir + file_base_name + "_val.csv")
     test_df.to_csv(out_dir + file_base_name + "_test.csv")
+
+
+def get_vocab(sentences: List[List]):
+    text = []
+    for sent in sentences:
+        text += sent
+    return set(text)
+
+
+def word2idx(vocab: List[str]):
+    w2i = {"<SOS>": 0, "<EOS>": 1}
+    n_words = 2
+    for word in vocab:
+        if word == "<SOS>" or word == "<EOS>":
+            continue
+        w2i[word] = n_words
+        n_words += 1
+    return w2i
+
+
+def idx2word(vocab: List[str]):
+    i2w = {0: "<SOS>", 1: "<EOS>"}
+    n_words = 2
+    for word in vocab:
+        if word == "<SOS>" or word == "<EOS>":
+            continue
+        i2w[n_words] = word
+        n_words += 1
+    return i2w
+
+
+def sent2idx(word2idx, sentence, max_len):
+    idxs = np.zeros(max_len, dtype=np.int32)
+    word_idxs = [word2idx[word] for word in sentence]
+    idxs[: len(word_idxs)] = word_idxs
+    return idxs
+
+
+def add_sentence_tokens(s: list):
+    return ["<SOS>"] + s + ["<EOS>"]
+
+
+def trim_outliers(df, col_name, max_len):
+    valid = []
+    for i, sent in enumerate(df[col_name].values):
+        if len(sent) <= max_len:
+            valid.append(i)
+    return_df = df.copy().iloc[np.array(valid)]
+    return return_df.reset_index(drop=True)
+
+
+def remove_duplicates(df, col_name):
+    return_df = df.copy()
+    return_df["tmp_col_remove_duplicates"] = df[col_name].apply(tuple)
+    return_df = return_df[
+        ~return_df.duplicated(subset="tmp_col_remove_duplicates", keep=False)
+    ]
+    return_df.drop(columns=["tmp_col_remove_duplicates"], inplace=True)
+    return return_df.reset_index(drop=True)
